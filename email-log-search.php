@@ -7,7 +7,7 @@
  *   Read email log records and report those matching given criteria
  *   (login name(s), email address(es) and/or ip address(es))
  *
- *   Usage:  email-log-search.php (-l login | -e email-addr | -i ip) [...]
+ *   Usage:  email-log-search.php [-m] (-l login | -e email-addr | -i ip) [...]
  *
  * We count each POP3 connection as a "session", and report (print log records to stdout)
  * sessions matching an ip address or login name.
@@ -124,8 +124,10 @@ function parselog_postfix(&$r) {
 	global $logins;
 	global $emailaddrs;
 	global $ipaddrs;
+	global $follow_msgids;
 	static $sessions = array();	// smtpd sessions
 	static $messages = array();	// postfix queued messages
+	static $messageids = array();	// tracked message-ids
 
 	# smtpd
 	static $smtpd_connect = '/connect from ([^[]*)\[((\d{1,3}\.){3}\d{1,3})\]/';
@@ -137,6 +139,8 @@ function parselog_postfix(&$r) {
 	static $qmgr_removed = '/^([[:xdigit:]]+): removed/';
 
 	# lmtp
+	# potential bug: this also matches delivery to remote postfix servers,
+	# so we'll try to track their queueid - harmless?
 	static $lmtp_secondary_qid = '/^([[:xdigit:]]+): (to|from)=<([^>]+)>.+status=sent.+ queued as ([[:xdigit:]]+)/';
 
 	# bounce
@@ -261,8 +265,23 @@ function parselog_postfix(&$r) {
 						$print_records++;
 			}
 
+			$msgid = (isset($msg['message-id']) ? $msg['message-id'] : null);
 
-			if ($print_records || isset($msg['me_too'])) {
+			if ($msgid && isset($messageids[$msgid])
+				&& isset($messageids[$msgid]['tracked'])
+				&& $messageids[$msgid]['tracked'])
+			{
+					$follow_msgid = true;
+			} else {
+					$follow_msgid = false;
+			}
+
+			if ($print_records || isset($msg['me_too']) || $follow_msgid) {
+				if ($msgid) {
+					$messageids[$msgid]['tracked'] = true;
+					$follow_msgid = true;
+				}
+					
 				foreach ($msg['records'] as $rec)
 					echo $rec;
 			}
@@ -285,6 +304,9 @@ function parselog_postfix(&$r) {
 				}
 			}
 
+			if ($msgid && ! $follow_msgid) {
+				unset($messageids[$msgid]);
+			}
 			unset($messages[$qid]);
 			break;
 		}
@@ -295,6 +317,7 @@ function parselog_postfix(&$r) {
 	    case 'cleanup':
 	    case 'lmtp':
 	    case 'local':
+	    case 'pipe':
 	    case 'bounce':
 	    case 'error':
 
@@ -312,10 +335,10 @@ function parselog_postfix(&$r) {
 	} else if (preg_match($match_to_from, $log, $m)) {
 		$msg['addrs'][] = strtolower($m[3]);
 		$msg['records'][] = $r['record'];
-// We don't currently use message-id, so disabling:
-//	} else if (preg_match($match_msgid, $log, $m)) {
-//		$msg['message-id'] = $m[2];
-//		$msg['records'][] = $r['record'];
+	} else if ($follow_msgids
+			&& preg_match($match_msgid, $log, $m)) {
+		$msg['message-id'] = $m[2];
+		$msg['records'][] = $r['record'];
 	} else if ($qid) {
 		$msg['records'][] = $r['record'];
 	}
@@ -327,6 +350,7 @@ function parselog_postfix(&$r) {
 	    case 'pickup':
 		break;
 	    default:
+				die ("ERROR: Don't know what to do with postfix service '$daemon'\n");
 		break;
 	}
 }
@@ -334,11 +358,16 @@ function parselog_postfix(&$r) {
 
 /* Main Program */
 
-$usage = "Usage:  $argv[0] (-l login | -e email-addr | -i ip) [...]\n";
+$usage = "Usage:  $argv[0] [-m] (-l login | -e email-addr | -i ip) [...]\n";
+$usage .= "        -m = follow message-ids (catch subsequent re-injection of message)\n";
+$usage .= "        -l = match specified login name (pop3 or sasl)\n";
+$usage .= "        -d = match specified email address\n";
+$usage .= "        -i = match specified ip address\n";
 $usage .= "Note: -l matches login names, -e matches email addresses; you may need to use both\n";
 $usage .= "(-e email addresses will not match as a login name otherwise).\n";
 
 $shortopts  = "";
+$shortopts .= "m";	// Follow Message-IDs
 $shortopts .= "l:";	// Login name
 $shortopts .= "e:";	// E-Mail Address
 $shortopts .= "i:";	// IP Address
@@ -352,6 +381,7 @@ $longopts  = array(
 $logins = array();
 $emailaddrs = array();
 $ipaddrs = array();
+$follow_msgids = false;
 
 $options = getopt($shortopts, $longopts);
 is_array($options) || die($usage);
@@ -359,6 +389,9 @@ is_array($options) || die($usage);
 foreach ($options as $opt => $val) {
 	switch($opt)
 	{
+		case 'm':
+			$follow_msgids=true;
+			break;
 		case 'l':
 		case 'login':
 			if (is_array($val))

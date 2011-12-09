@@ -4,7 +4,7 @@ email-log-search.php
 Read email log records and report those matching any given criteria
 (login name(s), email address(es) and/or ip address(es)).
 
-    Usage:  email-log-search.php (-l login | -e email-addr | -i ip) [...]
+    Usage:  email-log-search.php [-m] (-l login | -e email-addr | -i ip) [...]
 
 Copyright 2011 Jesse Norell <jesse@kci.net>
 
@@ -53,6 +53,16 @@ to know what's what, so you'll probably need to clarify that.
 If you wish to require searches to match multiple criteria, you could chain together like:
 
     cat logs | email-log-search.php --ip z.y.x.w | email-log-search.php -e addr@foo.bar
+
+Message-IDs
+-----------
+
+You can use the -m switch to follow message-ids, which is useful for configurations
+where a message is delivered then re-enters the mail queue to a different address.
+We have one such setup (dbmail mail forwarding).  This is catches this case, but
+tracking by Message IDs is not completely reliable in general, as they are not
+always unique.  There are also performance/memory implications.
+
 
 Source
 ------
