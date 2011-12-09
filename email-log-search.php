@@ -424,7 +424,7 @@ function parselog_postfix(&$r) {
 $usage = "Usage:  $argv[0] [-m] (-l login | -e email-addr | -i ip) [...]\n";
 $usage .= "        -m = follow message-ids (catch subsequent re-injection of message)\n";
 $usage .= "        -l = match specified login name (pop3 or sasl)\n";
-$usage .= "        -d = match specified email address\n";
+$usage .= "        -e = match specified email address\n";
 $usage .= "        -i = match specified ip address\n";
 $usage .= "Note: -l matches login names, -e matches email addresses; you may need to use both\n";
 $usage .= "(-e email addresses will not match as a login name otherwise).\n";
