@@ -34,8 +34,9 @@ Log Formats
 
 Log formats currently supported:
 
-* postfix (2.7.4)
+* postfix (2.5.5 and 2.7.4)
 * popa3d (1.0.2)
+* dbmail (1.2.12)
 
 Use
 ---

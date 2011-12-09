@@ -18,8 +18,9 @@
  *
  * Log formats currently supported:
  *
- *   postfix (2.7.4)
+ *   postfix (2.5.5 and 2.7.4)
  *   popa3d (1.0.2)
+ *   dbmail (1.2.12)
  *
  * Copyright 2011 Jesse Norell <jesse@kci.net>
  * 
@@ -81,6 +82,68 @@ function parselog_popa3d(&$r) {
 			    in_array($sessions[$pid]['ip'], $ipaddrs))
 			{
 				foreach ($sessions[$pid]['records'] as $rec)
+					echo $rec;
+			}
+			unset($sessions[$pid]);
+		}
+	}
+}
+
+/*
+ * dbmail log parser
+ *
+ * Adjust log verbosity as needed,
+ * this is the log format dbmail 1.2.12 produces:
+ *
+Dec  9 11:59:17 mail1 dbmail/pop3d[31998]: PerformChildTask(): incoming connection from [aa.bb.cc.dd]
+Dec  9 11:59:17 mail1 dbmail/pop3d[31998]: pop3(): user username logged in [messages=251, octets=8031123]
+Dec  9 11:59:17 mail1 dbmail/pop3d[31998]: pop3_handle_connection(): user username logging out [messages=251, octets=8031123]
+ * Some other messages are:
+Dec  9 12:19:44 mail1 dbmail/pop3d[153]: pop3(): user [username] tried to login with wrong password
+Dec  9 12:19:44 mail1 dbmail/pop3d[253]: pop3_handle_connection(): error, uncomplete session
+Dec  9 12:19:44 mail1 dbmail/pop3d[353]: ChildSighandler(): got signal [11]
+Dec  9 12:19:44 mail1 dbmail/pop3d[453]: auth_getencryption(): got (0) as userid
+*/
+function parselog_dbmail(&$r) {
+	global $logins;
+	global $ipaddrs;
+	static $sessions = array();
+
+	static $sess_start = '/incoming connection from \[((\d{1,3}\.){3}\d{1,3})\]/';
+	static $sess_login = '/user \[?(.+)\]? (logged in|tried to login)/';
+	static $sess_stop = '/(user (.+) logging out|error, uncomplete session|got signal |got \(.+\) as userid)/';
+
+	$daemon = substr($r['service'],strlen("dbmail/"));
+  if ($daemon != 'pop3d') return;
+
+	$pid = $r['pid'];
+	$log = $r['log'];
+
+	if (! isset($sessions[$pid])) {
+		$sessions[$pid] = array();
+		$sessions[$pid]['records'] = array();
+	}
+
+	$sess =& $sessions[$pid];
+
+	if (count($sess) == 0) {
+		if (preg_match($sess_start, $log, $m)) {
+			# Session Start
+			$sess['ip'] = $m[1];
+			$sess['records'][] = $r['record'];
+		}
+	} else {
+		$sess['records'][] = $r['record'];
+
+		if (preg_match($sess_login, $log, $m)) {
+			# Session Login Name
+			$sess['login'] = strtolower($m[1]);
+		} else if (preg_match($sess_stop, $log)) {
+			# Session Stop
+			if (in_array($sess['login'], $logins) ||
+			    in_array($sess['ip'], $ipaddrs))
+			{
+				foreach ($sess['records'] as $rec)
 					echo $rec;
 			}
 			unset($sessions[$pid]);
@@ -441,8 +504,9 @@ while ($line = fgets(STDIN)) {
 	if ($record['service'] == 'popa3d')
 			parselog_popa3d($record);
 	else if (! strncmp($record['service'], 'postfix', 7))
-	if (! strncmp($record['service'], 'postfix', 7))
 			parselog_postfix($record);
+	else if (! strncmp($record['service'], 'dbmail', 6))
+			parselog_dbmail($record);
 }
 
 ?>
