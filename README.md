@@ -17,6 +17,9 @@ After killing half a day trying to mess with existing log parsing
 programs, and also not finding any to handle our POP3 server,
 we made more progress by writing one from scratch.
 
+This has since been expanded to use on a second mail system
+for day-to-day administrative use.  Quite handy, actually.
+
 Reporting Search Criteria
 -------------------------
 
