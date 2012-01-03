@@ -413,6 +413,7 @@ function parselog_postfix(&$r) {
 	    case 'pickup':
 	    case 'postfix-script':
 	    case 'scache':
+	    case 'trivial-rewrite':
 		break;
 	    default:
 				die ("ERROR: Don't know what to do with postfix service '$daemon'\n");
