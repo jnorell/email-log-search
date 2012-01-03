@@ -412,6 +412,7 @@ function parselog_postfix(&$r) {
 	    case 'master':
 	    case 'pickup':
 	    case 'postfix-script':
+	    case 'postsuper':
 	    case 'scache':
 	    case 'trivial-rewrite':
 		break;
