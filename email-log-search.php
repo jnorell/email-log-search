@@ -409,9 +409,10 @@ function parselog_postfix(&$r) {
 
 		break;
 	    case 'anvil':
-	    case 'scache':
+	    case 'master':
 	    case 'pickup':
 	    case 'postfix-script':
+	    case 'scache':
 		break;
 	    default:
 				die ("ERROR: Don't know what to do with postfix service '$daemon'\n");
