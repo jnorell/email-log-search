@@ -414,6 +414,7 @@ function parselog_postfix(&$r) {
 	    case 'postfix-script':
 	    case 'postsuper':
 	    case 'scache':
+	    case 'sendmail':
 	    case 'trivial-rewrite':
 		break;
 	    default:
